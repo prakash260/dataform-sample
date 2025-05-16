@@ -1,0 +1,51 @@
+// definitions/merge_customers.sqlx
+// Merge operation for customers data
+
+// Import the project configuration
+const { PROJECTS, DATASETS, SCHEMAS, TAGS } = require("dataform_includes/project_config.js");
+// Import the merge template
+const { generateMergeStatement } = require("dataform_includes/merge_template.js");
+
+// Define the config block with constants from the config file
+config {
+  type: "operations",
+  name: "customers_raw_to_customers_dim_merge",
+  schema: SCHEMAS.OPERATIONS,
+  tags: TAGS.MERGE
+}
+
+// Generate the merge statement using the constants
+${generateMergeStatement({
+  sourceName: "customers_raw",
+  targetName: "customers_dim",
+  sourceProject: PROJECTS.SOURCE,
+  targetProject: PROJECTS.TARGET,
+  sourceDataset: DATASETS.RAW,
+  targetDataset: DATASETS.DWH,
+  sourceTable: "${ref('raw_customers')}",
+  targetTable: "${ref('customers_dimension')}",
+  mergeKey: ["customer_id"],
+  insertColumns: [
+    "customer_id",
+    "customer_name",
+    "email",
+    "phone",
+    "address",
+    "city",
+    "state",
+    "country",
+    "postal_code"
+  ],
+  updateColumns: [
+    "customer_name",
+    "email",
+    "phone",
+    "address",
+    "city",
+    "state",
+    "country",
+    "postal_code"
+  ],
+  sourceFilters: "is_active = true",
+  additionalLogic: ""
+})}

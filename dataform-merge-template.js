@@ -1,10 +1,13 @@
 // dataform_includes/merge_template.js
-// Updated to support multiple source filters
+// Updated to support fully qualified table names with project.dataset.table format
+// Removed config block - this should be defined in the .sqlx files
 
 function generateMergeStatement(config) {
   const {
     sourceName,
     targetName,
+    sourceProject = "",       // Parameter for source project
+    targetProject = "",       // Parameter for target project
     sourceDataset = "",
     targetDataset = "",
     sourceTable,
@@ -12,7 +15,7 @@ function generateMergeStatement(config) {
     mergeKey,
     insertColumns,
     updateColumns,
-    sourceFilters = [], // Change to array for multiple filters
+    sourceFilters = [],       // Array for multiple filters
     additionalLogic = "",
   } = config;
 
@@ -27,24 +30,20 @@ function generateMergeStatement(config) {
   const whereClause =
     filtersArray.length > 0 ? `WHERE ${filtersArray.join(" AND ")}` : "";
 
-  // Construct fully qualified table names with datasets if provided
-  const fullyQualifiedSourceTable = sourceDataset
-    ? `${sourceDataset}.${sourceTable}`
-    : `${sourceTable}`;
+  // Construct fully qualified table names with project and dataset if provided
+  const fullyQualifiedSourceTable = constructFullyQualifiedTableName(
+    sourceProject,
+    sourceDataset,
+    sourceTable
+  );
 
-  const fullyQualifiedTargetTable = targetDataset
-    ? `${targetDataset}.${targetTable}`
-    : `${targetTable}`;
+  const fullyQualifiedTargetTable = constructFullyQualifiedTableName(
+    targetProject,
+    targetDataset,
+    targetTable
+  );
 
-  return `
-config {
-  type: "operations",
-  name: "${sourceName}_to_${targetName}_merge",
-  schema: "staging",
-  tags: ["merge_operations"]
-}
-
-MERGE \`${fullyQualifiedTargetTable}\` AS target
+  return `MERGE \`${fullyQualifiedTargetTable}\` AS target
 USING (
   SELECT 
     ${insertColumns.map((col) => `${col}`).join(",\n    ")}
@@ -73,6 +72,20 @@ WHEN NOT MATCHED THEN
   )
 ${additionalLogic}
 `;
+}
+
+// Helper function to construct fully qualified table names
+function constructFullyQualifiedTableName(project, dataset, table) {
+  // Handle table references that might already include backticks
+  const cleanTable = table.replace(/`/g, "");
+  
+  if (project && dataset) {
+    return `${project}.${dataset}.${cleanTable}`;
+  } else if (dataset) {
+    return `${dataset}.${cleanTable}`;
+  } else {
+    return cleanTable;
+  }
 }
 
 module.exports = { generateMergeStatement };
